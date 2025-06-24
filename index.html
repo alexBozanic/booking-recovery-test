@@ -2,75 +2,48 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Sample Booking Page – Abandoned Cart Demo</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Booking Recovery Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* ——— Basic styling for clarity; strip out or replace as needed ——— */
-    body {font-family: Arial, sans-serif; margin: 2rem; background: #f7f8fa;}
-    h1   {margin-bottom: 0.5rem;}
-    form {background:#fff; padding:1.5rem; border-radius:6px; max-width:480px;}
-    label{display:block; margin:.75rem 0 .25rem;}
-    input,select,button{width:100%; padding:.5rem; border:1px solid #ccc; border-radius:4px;}
-    button{background:#1065e1; color:#fff; cursor:pointer; margin-top:1.25rem;}
-    .two-col{display:grid; grid-template-columns:1fr 1fr; gap:1rem;}
+    body { font-family: Arial, sans-serif; margin: 2rem; background: #f5f7f9; }
+    h1 { margin-bottom: 1rem; }
+    form { background: white; padding: 1.5rem; border-radius: 6px; max-width: 480px; }
+    label { display: block; margin: 0.75rem 0 0.25rem; }
+    input, select, button { width: 100%; padding: 0.5rem; margin-bottom: 0.5rem; }
+    button { background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
   </style>
 </head>
-
 <body>
   <h1>Book Your Stay</h1>
-  <p>(Fake page for abandoned-booking testing)</p>
-
-  <!-- ——— SIMPLE BOOKING FORM ——— -->
   <form id="bookingForm">
     <label for="fullName">Full Name</label>
-    <input id="fullName" name="fullName" type="text" required>
-
+    <input id="fullName" type="text" required>
+    
     <label for="email">Email</label>
-    <input id="email" name="email" type="email" required>
+    <input id="email" type="email" required>
 
     <label for="phone">Phone</label>
-    <input id="phone" name="phone" type="tel" placeholder="+1-808-555-1234">
+    <input id="phone" type="tel">
 
-    <div class="two-col">
-      <div>
-        <label for="checkin">Check-in</label>
-        <input id="checkin" name="checkin" type="date" required>
-      </div>
-      <div>
-        <label for="checkout">Check-out</label>
-        <input id="checkout" name="checkout" type="date" required>
-      </div>
-    </div>
+    <label for="checkin">Check-In Date</label>
+    <input id="checkin" type="date" required>
 
-    <label for="guests">Guests</label>
-    <select id="guests" name="guests">
-      <option>1</option><option>2</option><option>3</option><option>4+</option>
-    </select>
+    <label for="checkout">Check-Out Date</label>
+    <input id="checkout" type="date" required>
 
     <label for="room">Room Type</label>
-    <select id="room" name="room">
-      <option value="standard">Standard</option>
-      <option value="deluxe">Deluxe</option>
-      <option value="suite">Suite</option>
+    <select id="room">
+      <option>Standard</option>
+      <option>Deluxe</option>
+      <option>Suite</option>
     </select>
 
-    <button type="submit">Complete Booking</button>
+    <button type="submit">Submit Booking</button>
   </form>
 
-  <!-- ——————————————————————————————————————————
-       JAVASCRIPT:  capture abandoned data + send to Make
-  ——————————————————————————————————————————— -->
   <script>
-    /*****************************************************************
-     * CONFIGURATION
-     *****************************************************************/
-    const MAKE_WEBHOOK_URL =
-      "https://hook.us2.make.com/6qa1ao69bukkl9adkewghbytjoaei25w";
+    const MAKE_WEBHOOK_URL = "https://hook.us2.make.com/6qa1ao69bukkl9adkewghbytjoaei25w";
 
-    /*****************************************************************
-     * UTILITIES
-     *****************************************************************/
-    /** Collect current form values into a plain object */
     function collectFormData() {
       return {
         fullName    : document.querySelector("#fullName")?.value || "",
@@ -78,46 +51,40 @@
         phone       : document.querySelector("#phone")?.value || "",
         checkin     : document.querySelector("#checkin")?.value || "",
         checkout    : document.querySelector("#checkout")?.value || "",
-        guests      : document.querySelector("#guests")?.value || "",
         room        : document.querySelector("#room")?.value || "",
-        abandoned_url : window.location.href,
-        timestamp     : new Date().toISOString()
+        abandoned_url: window.location.href,
+        timestamp   : new Date().toISOString()
       };
     }
 
-    /** Fire the Make webhook using navigator.sendBeacon (reliable on unload) */
-    function sendAbandonment(payload) {
-      try {
-        const blob = new Blob([JSON.stringify(payload)], {type: "application/json"});
-        navigator.sendBeacon(MAKE_WEBHOOK_URL, blob);
-        console.log("🟢 Abandonment payload sent", payload);
-      } catch (err) {
-        console.error("🔴 Failed to send payload", err);
-      }
-    }
+    let bookingCompleted = false;
 
-    /*****************************************************************
-     * LOGIC
-     *****************************************************************/
-    let bookingCompleted = false;   // toggled true on successful submit
-
-    // 1️⃣  Mark as completed when the form is really submitted.
-    document.querySelector("#bookingForm").addEventListener("submit", (e) => {
-      e.preventDefault();                // demo only (remove if you have backend)
-      bookingCompleted = true;           // no abandoned message gets sent
-      alert("✅ Demo: Booking submitted!");
-      // in real life you'd POST to your backend here then redirect / show success
+    document.querySelector("#bookingForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      bookingCompleted = true;
+      alert("✅ Booking submitted (demo only)");
     });
 
-    // 2️⃣  Capture abandonment *once* just before the visitor leaves or reloads.
-    window.addEventListener("beforeunload", (event) => {
-      if (bookingCompleted) return;      // user finished the flow → do nothing
+    // Replacing sendBeacon with fetch for testing
+    window.addEventListener("beforeunload", function (event) {
+      if (bookingCompleted) return;
+
       const payload = collectFormData();
-      // Only send if we have at least an email or phone (adjust to your needs)
+      console.log("🔁 Attempting to send abandonment payload", payload);
+
       if (payload.email || payload.phone) {
-        sendAbandonment(payload);
+        fetch(MAKE_WEBHOOK_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+        }).then(res => {
+          console.log("✅ Payload sent via fetch", res);
+        }).catch(err => {
+          console.error("❌ Fetch error:", err);
+        });
       }
-      /* No need to set event.returnValue — we don't want a confirmation dialog. */
     });
   </script>
 </body>
