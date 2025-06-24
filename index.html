@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Booking Page - Abandoned Cart Recovery MVP</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        form { max-width: 500px; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; }
+        input[type="email"],
+        input[type="tel"],
+        input[type="date"],
+        input[type="text"] {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover { background-color: #0056b3; }
+    </style>
+</head>
+<body data-client-id="your_test_client_id">
+
+    <h1>Simulate a Booking</h1>
+    <p>Enter some details and then close the tab or navigate away to simulate an abandoned booking.</p>
+
+    <form id="testBookingForm">
+        <label for="customerEmail">Email Address:</label>
+        <input type="email" id="customerEmail" name="customerEmail" placeholder="your.email@example.com" required>
+
+        <label for="customerPhone">Phone Number:</label>
+        <input type="tel" id="customerPhone" name="customerPhone" placeholder="123-456-7890">
+
+        <label for="checkinDate">Check-in Date:</label>
+        <input type="date" id="checkinDate" name="checkinDate">
+
+        <label for="roomType">Room Type / Tour Name:</label>
+        <input type="text" id="roomType" name="roomType" placeholder="Deluxe Room / Sunset Cruise">
+
+        <button type="submit">Simulate Complete Booking (Optional)</button>
+    </form>
+
+    <script>
+    (function() {
+      const webhookUrl = "6qa1ao69bukkl9adkewghbytjoaei25w@hook.us2.make.com"; // Replace with your Make webhook URL
+      const gracePeriodMinutes = 5;
+
+      let email = "", phone = "", url = window.location.href;
+
+      const saveToLocal = () => {
+        localStorage.setItem("abandonEmail", email);
+        localStorage.setItem("abandonPhone", phone);
+        localStorage.setItem("abandonTime", Date.now());
+      };
+
+      const sendWebhook = () => {
+        fetch(webhookUrl, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            customer_email: email,
+            customer_phone: phone,
+            abandoned_url: url,
+            captured_date: new Date().toISOString(),
+            room_type: document.getElementById("roomType")?.value || null,
+            checkin_date: document.getElementById("checkinDate")?.value || null
+          })
+        });
+      };
+
+      document.addEventListener("input", function(e) {
+        if (e.target.id === "customerEmail") {
+          email = e.target.value;
+          saveToLocal();
+        }
+        if (e.target.id === "customerPhone") {
+          phone = e.target.value;
+          saveToLocal();
+        }
+      });
+
+      window.addEventListener("beforeunload", function() {
+        const abandonTime = localStorage.getItem("abandonTime");
+        const now = Date.now();
+        if (abandonTime && (now - abandonTime > gracePeriodMinutes * 1)) {
+          if (email || phone) {
+            sendWebhook();
+          }
+        }
+      });
+    })();
+    </script>
+
+</body>
+</html>
