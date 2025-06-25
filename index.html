@@ -41,38 +41,37 @@
 
     const form = document.getElementById("booking-form");
 
-    /* 1. Mark booking as "started" on first input */
+    // 1. Mark booking as started on first input
     const startHandler = () => {
       if (!sessionStorage.getItem("bookingStarted")) {
         sessionStorage.setItem("bookingStarted", "true");
-        /* optional: timestamp */
         sessionStorage.setItem("bookingStartedAt", new Date().toISOString());
       }
     };
     form.addEventListener("input", startHandler, { once: true });
 
-    /* 2. Send "completed" payload on form submit */
+    // 2. Send "completed" data on form submit
     form.addEventListener("submit", (e) => {
-      e.preventDefault();          // Stay on page (optional)
+      e.preventDefault();
       const data = Object.fromEntries(new FormData(form).entries());
-      data.status    = "completed";
+      data.status = "completed";
       data.timestamp = new Date().toISOString();
 
       fetch(WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-      }).catch(()=>{/* network errors ignored */});
+      }).catch(() => {});
 
-      // Reset flags & show simple confirmation
       sessionStorage.removeItem("bookingStarted");
       sessionStorage.setItem("bookingSubmitted", "true");
+
       form.innerHTML = "<p><strong>Thank you!</strong> Your booking was submitted.</p>";
     });
 
-    /* 3. Fire "abandoned" payload if visitor leaves early */
+    // 3. Send "abandoned" data if page is left before submission
     function sendAbandonedIfNeeded() {
-      const started   = sessionStorage.getItem("bookingStarted");
+      const started = sessionStorage.getItem("bookingStarted");
       const submitted = sessionStorage.getItem("bookingSubmitted");
 
       if (started && !submitted) {
@@ -81,21 +80,20 @@
           timestamp: new Date().toISOString(),
         };
 
-        // Use Beacon where possible so it still fires while the page unloads
         if (navigator.sendBeacon) {
           navigator.sendBeacon(
             WEBHOOK_URL,
             new Blob([JSON.stringify(abandonedData)], { type: "application/json" })
           );
         } else {
-          // Fallback fetch (keepalive lets it finish after unload in modern browsers)
           fetch(WEBHOOK_URL, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(abandonedData),
+            mode: "no-cors",
             keepalive: true,
-          }).catch(()=>{});
+          }).catch(() => {});
         }
+
         sessionStorage.removeItem("bookingStarted");
       }
     }
@@ -107,3 +105,4 @@
   </script>
 </body>
 </html>
+
