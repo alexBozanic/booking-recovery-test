@@ -2,63 +2,107 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Booking Recovery Test</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Booking Test</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 2rem; }
-    input, button { display: block; margin: 1rem 0; padding: 0.5rem; width: 100%; max-width: 400px; }
-    button { background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    body {font-family: Arial, sans-serif; padding: 2rem; max-width: 600px; margin:auto;}
+    h1  {text-align:center;}
+    label{display:block;margin:0.6rem 0 0.2rem;}
+    input,select,button{width:100%;padding:0.5rem;font-size:1rem;}
+    button{margin-top:1rem;cursor:pointer;}
   </style>
 </head>
 <body>
-  <h1>Test Booking Page</h1>
-  <form id="bookingForm">
+  <h1>Simple Booking Form</h1>
+
+  <form id="booking-form">
+    <label for="name">Name</label>
+    <input id="name" name="name" required />
+
     <label for="email">Email</label>
-    <input id="email" type="email" placeholder="you@example.com" />
+    <input id="email" name="email" type="email" required />
 
-    <label for="phone">Phone</label>
-    <input id="phone" type="tel" placeholder="+1-555-555-5555" />
+    <label for="date">Arrival Date</label>
+    <input id="date" name="date" type="date" required />
 
-    <button type="submit">Submit Booking</button>
+    <label for="guests">Guests</label>
+    <select id="guests" name="guests" required>
+      <option value="" disabled selected>Select…</option>
+      <option>1</option><option>2</option><option>3</option><option>4+</option>
+    </select>
+
+    <button type="submit">Book Now</button>
   </form>
 
-  <!-- ✅ PLACE SCRIPT AT THE BOTTOM OF BODY -->
   <script>
-    const MAKE_WEBHOOK_URL = "https://hook.us2.make.com/6qa1ao69bukkl9adkewghbytjoaei25w";
+    // ──────────────── CONFIG ────────────────
+    const WEBHOOK_URL = "https://hook.us2.make.com/6qa1ao69bukkl9adkewghbytjoaei25w";
+    // ────────────────────────────────────────
 
-    function collectFormData() {
-      return {
-        email: document.querySelector("#email")?.value || "",
-        phone: document.querySelector("#phone")?.value || "",
-        abandoned_url: window.location.href,
-        timestamp: new Date().toISOString()
-      };
-    }
+    const form = document.getElementById("booking-form");
 
-    let bookingCompleted = false;
+    /* 1. Mark booking as "started" on first input */
+    const startHandler = () => {
+      if (!sessionStorage.getItem("bookingStarted")) {
+        sessionStorage.setItem("bookingStarted", "true");
+        /* optional: timestamp */
+        sessionStorage.setItem("bookingStartedAt", new Date().toISOString());
+      }
+    };
+    form.addEventListener("input", startHandler, { once: true });
 
-    document.querySelector("#bookingForm").addEventListener("submit", function (e) {
-      e.preventDefault();
-      bookingCompleted = true;
-      alert("✅ Form submitted (no real backend)");
-    });
+    /* 2. Send "completed" payload on form submit */
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();          // Stay on page (optional)
+      const data = Object.fromEntries(new FormData(form).entries());
+      data.status    = "completed";
+      data.timestamp = new Date().toISOString();
 
-    window.addEventListener("beforeunload", function () {
-      if (bookingCompleted) return;
-      const payload = collectFormData();
-      if (!payload.email && !payload.phone) return;
-
-      console.log("📤 Sending abandoned booking payload:", payload);
-
-      fetch(MAKE_WEBHOOK_URL, {
+      fetch(WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      }).then((res) => {
-        console.log("✅ Payload sent", res.status);
-      }).catch((err) => {
-        console.error("❌ Error sending payload", err);
-      });
+        body: JSON.stringify(data),
+      }).catch(()=>{/* network errors ignored */});
+
+      // Reset flags & show simple confirmation
+      sessionStorage.removeItem("bookingStarted");
+      sessionStorage.setItem("bookingSubmitted", "true");
+      form.innerHTML = "<p><strong>Thank you!</strong> Your booking was submitted.</p>";
+    });
+
+    /* 3. Fire "abandoned" payload if visitor leaves early */
+    function sendAbandonedIfNeeded() {
+      const started   = sessionStorage.getItem("bookingStarted");
+      const submitted = sessionStorage.getItem("bookingSubmitted");
+
+      if (started && !submitted) {
+        const abandonedData = {
+          status: "abandoned",
+          timestamp: new Date().toISOString(),
+        };
+
+        // Use Beacon where possible so it still fires while the page unloads
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon(
+            WEBHOOK_URL,
+            new Blob([JSON.stringify(abandonedData)], { type: "application/json" })
+          );
+        } else {
+          // Fallback fetch (keepalive lets it finish after unload in modern browsers)
+          fetch(WEBHOOK_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(abandonedData),
+            keepalive: true,
+          }).catch(()=>{});
+        }
+        sessionStorage.removeItem("bookingStarted");
+      }
+    }
+
+    window.addEventListener("beforeunload", sendAbandonedIfNeeded);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") sendAbandonedIfNeeded();
     });
   </script>
 </body>
