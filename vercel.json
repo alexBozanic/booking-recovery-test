@@ -1,0 +1,12 @@
+{
+  "functions": {
+    "src/app/api/**/*.ts": {
+      "maxDuration": 30
+    }
+  },
+  "env": {
+    "RESEND_API_KEY": "@resend-api-key",
+    "FROM_EMAIL": "@from-email",
+    "JWT_SECRET": "@jwt-secret"
+  }
+}
