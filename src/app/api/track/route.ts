@@ -92,21 +92,10 @@ export async function POST(request: NextRequest) {
     } else if (event === 'completion') {
       console.log('🎉 BOOKING COMPLETED - Success!');
       
-      // Send confirmation email if email is available
+      // NOTE: A proper completion email function would need to be added to email.ts
+      // For now, we just log the success.
       if (formData.email) {
-        const clientInfo = {
-          name: client.name,
-          domain: client.domain,
-          businessType: client.businessType || 'business'
-        };
-
-        await EmailService.sendCompletionEmail(
-          formData.email,
-          clientInfo,
-          formData
-        );
-
-        console.log(`✅ Confirmation email sent to ${formData.email}`);
+        console.log(`✅ Completion email would be sent to ${formData.email}`);
       }
     }
 
@@ -127,7 +116,7 @@ export async function POST(request: NextRequest) {
 }
 
 // Handle CORS for cross-origin requests from client websites
-export async function OPTIONS(request: NextRequest) {
+export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
     headers: {

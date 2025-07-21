@@ -4,15 +4,32 @@ import {
   PutCommand, 
   GetCommand, 
   QueryCommand, 
-  ScanCommand,
-  UpdateCommand,
-  DeleteCommand 
+  UpdateCommand
 } from "@aws-sdk/lib-dynamodb";
-import { 
-  CreateTableCommand, 
-  DescribeTableCommand, 
-  ResourceNotFoundException 
-} from "@aws-sdk/client-dynamodb";
+
+// Define a basic type for user data, can be expanded later
+interface UserData {
+  id: string;
+  email: string;
+  name: string;
+  password?: string; // Password should be handled carefully
+  [key: string]: any; // Allow other properties
+}
+
+// Define a type for client data
+interface ClientData {
+  id: string;
+  userId: string;
+  [key: string]: any; // Allow other properties
+}
+
+// Define a type for booking data
+interface BookingData {
+  id: string;
+  trackingId: string;
+  [key: string]: any; // Allow other properties
+}
+
 
 // Initialize DynamoDB client
 const client = new DynamoDBClient({
@@ -36,7 +53,7 @@ export const TABLES = {
 // Database service functions
 export class DatabaseService {
   // User operations
-  static async createUser(userData: any) {
+  static async createUser(userData: UserData) {
     const command = new PutCommand({
       TableName: TABLES.USERS,
       Item: userData
@@ -44,16 +61,16 @@ export class DatabaseService {
     return await db.send(command);
   }
 
-  static async getUserById(userId: string) {
+  static async getUserById(userId: string): Promise<UserData | undefined> {
     const command = new GetCommand({
       TableName: TABLES.USERS,
       Key: { id: userId }
     });
     const result = await db.send(command);
-    return result.Item;
+    return result.Item as UserData | undefined;
   }
 
-  static async getUserByEmail(email: string) {
+  static async getUserByEmail(email: string): Promise<UserData | undefined> {
     const command = new QueryCommand({
       TableName: TABLES.USERS,
       IndexName: "EmailIndex",
@@ -63,11 +80,11 @@ export class DatabaseService {
       }
     });
     const result = await db.send(command);
-    return result.Items?.[0];
+    return result.Items?.[0] as UserData | undefined;
   }
 
   // Client operations
-  static async createClient(clientData: any) {
+  static async createClient(clientData: ClientData) {
     const command = new PutCommand({
       TableName: TABLES.CLIENTS,
       Item: clientData
@@ -75,7 +92,7 @@ export class DatabaseService {
     return await db.send(command);
   }
 
-  static async getClientsByUserId(userId: string) {
+  static async getClientsByUserId(userId: string): Promise<ClientData[]> {
     const command = new QueryCommand({
       TableName: TABLES.CLIENTS,
       IndexName: "UserIdIndex",
@@ -85,10 +102,10 @@ export class DatabaseService {
       }
     });
     const result = await db.send(command);
-    return result.Items || [];
+    return (result.Items as ClientData[]) || [];
   }
 
-  static async getClientByTrackingId(trackingId: string) {
+  static async getClientByTrackingId(trackingId: string): Promise<ClientData | undefined> {
     const command = new QueryCommand({
       TableName: TABLES.CLIENTS,
       IndexName: "TrackingIdIndex",
@@ -98,11 +115,11 @@ export class DatabaseService {
       }
     });
     const result = await db.send(command);
-    return result.Items?.[0];
+    return result.Items?.[0] as ClientData | undefined;
   }
 
   // Booking operations
-  static async createBooking(bookingData: any) {
+  static async createBooking(bookingData: BookingData) {
     const command = new PutCommand({
       TableName: TABLES.BOOKINGS,
       Item: bookingData
@@ -110,7 +127,7 @@ export class DatabaseService {
     return await db.send(command);
   }
 
-  static async getBookingsByTrackingId(trackingId: string, limit = 50) {
+  static async getBookingsByTrackingId(trackingId: string, limit = 50): Promise<BookingData[]> {
     const command = new QueryCommand({
       TableName: TABLES.BOOKINGS,
       IndexName: "TrackingIdIndex",
@@ -122,7 +139,7 @@ export class DatabaseService {
       Limit: limit
     });
     const result = await db.send(command);
-    return result.Items || [];
+    return (result.Items as BookingData[]) || [];
   }
 
   static async updateBookingStatus(bookingId: string, status: string) {
@@ -157,9 +174,15 @@ export class DatabaseService {
     });
     
     const result = await db.send(command);
-    const bookings = result.Items || [];
+    const bookings = (result.Items as BookingData[]) || [];
     
-    const stats = {
+    const stats: {
+        total: number;
+        abandoned: number;
+        completed: number;
+        recovered: number;
+        recoveryRate?: string;
+    } = {
       total: bookings.length,
       abandoned: bookings.filter(b => b.status === 'abandoned').length,
       completed: bookings.filter(b => b.status === 'completed').length,

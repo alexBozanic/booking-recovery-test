@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     // Get user from database
     const user = await DatabaseService.getUserByEmail(email);
     
-    if (!user) {
+    if (!user || !user.password) {
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
     const token = generateToken(user);
 
     // Return user data and token (exclude password)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _, ...userWithoutPassword } = user;
     
     return NextResponse.json({
