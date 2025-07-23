@@ -52,7 +52,7 @@ const TrackingScript = ({ trackingId }: { trackingId: string }) => {
       <h4>Your Tracking Script</h4>
       <p>Copy this script and paste it into the &lt;head&gt; or &lt;body&gt; section of your website's HTML, or use your website builder's "Custom Code" feature.</p>
       {/* We will link to a real guide later */}
-      <a href="#" style={{fontSize: '0.9rem'}}>Need help? Read our deployment guide.</a>
+      <a href="/guide" style={{fontSize: '0.9rem'}}>Need help? Read our deployment guide.</a>
       <pre style={{ 
         backgroundColor: '#f5f5f5', 
         padding: '1rem', 
