@@ -22,7 +22,6 @@ const Navbar = () => {
       backgroundColor: '#fff'
     }}>
       <div>
-        {/* This link now correctly points to the user's dashboard */}
         <Link href="/dashboard" style={{ fontWeight: 'bold', textDecoration: 'none', color: '#000' }}>
           My Dashboard
         </Link>
@@ -30,6 +29,13 @@ const Navbar = () => {
       <div>
         {isAuthenticated ? (
           <>
+            {/* --- NEW BUTTON ADDED HERE --- */}
+            <button 
+              onClick={() => router.push('/campaigns')} 
+              style={{ marginRight: '1rem', padding: '0.5rem 1rem', border: '1px solid #ccc', borderRadius: '5px', cursor: 'pointer' }}
+            >
+              Campaigns
+            </button>
             <button 
               onClick={handleManageWebsites} 
               style={{ marginRight: '1rem', padding: '0.5rem 1rem', border: '1px solid #ccc', borderRadius: '5px', cursor: 'pointer' }}
