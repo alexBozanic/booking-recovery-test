@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext'; // Import the useAuth hook
 import Link from 'next/link';
 
 const LoginPage = () => {
@@ -9,7 +9,7 @@ const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
+  const { login } = useAuth(); // Get the login function from our context
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,14 +30,13 @@ const LoginPage = () => {
       }
 
       // --- THIS IS THE CRITICAL FIX ---
-      // Save the token to localStorage so other pages can use it
+      // Use the context's login function to save the token and redirect
       if (data.token) {
-        localStorage.setItem('authToken', data.token);
+        login(data.token);
+      } else {
+        throw new Error('Login successful, but no token received.');
       }
       // --- END OF FIX ---
-
-      // Redirect to the dashboard on successful login
-      router.push('/websites');
 
     } catch (err: any) {
       setError(err.message);
