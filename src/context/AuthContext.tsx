@@ -29,7 +29,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = (token: string) => {
     localStorage.setItem('authToken', token);
     setIsAuthenticated(true);
-    router.push('/websites');
+    router.push('/dashboard'); // This now correctly points to the new dashboard
   };
 
   const logout = () => {
