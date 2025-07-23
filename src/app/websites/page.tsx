@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext'; // Import useAuth
-import Navbar from '@/components/Navbar'; // Import the Navbar
+import { useAuth } from '@/context/AuthContext';
+import Navbar from '@/components/Navbar';
 
 // Define a type for the website data
 interface Website {
@@ -10,11 +10,67 @@ interface Website {
   name: string;
   domain: string;
   trackingId: string;
-  createdAt: string;
 }
 
+// --- NEW: A component to display the tracking script ---
+const TrackingScript = ({ trackingId }: { trackingId: string }) => {
+  const script = `
+(function() {
+    const TRACKING_ID = '${trackingId}'; 
+    const API_ENDPOINT = 'https://booking-recovery-test.vercel.app/api/track';
+    let lastCapturedData = {};
+    function captureFormData( ) {
+        const inputs = document.querySelectorAll('input, select, textarea');
+        const data = {};
+        let email = null;
+        inputs.forEach(input => {
+            if (input.type === 'email' || input.name.toLowerCase().includes('email')) {
+                email = input.value;
+            }
+            if (input.name) { data[input.name] = input.value; }
+        });
+        if (email && JSON.stringify(data) !== JSON.stringify(lastCapturedData)) {
+            lastCapturedData = data;
+            navigator.sendBeacon(API_ENDPOINT, JSON.stringify({
+                trackingId: TRACKING_ID,
+                bookingData: data,
+                clientInfo: { userAgent: navigator.userAgent, url: window.location.href }
+            }));
+        }
+    }
+    document.addEventListener('input', captureFormData, true);
+})();
+  `;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(script);
+    alert('Script copied to clipboard!');
+  };
+
+  return (
+    <div style={{ marginTop: '1rem', border: '1px solid #eee', padding: '1rem', borderRadius: '5px' }}>
+      <h4>Your Tracking Script</h4>
+      <p>Copy this script and paste it into the &lt;head&gt; or &lt;body&gt; section of your website's HTML, or use your website builder's "Custom Code" feature.</p>
+      {/* We will link to a real guide later */}
+      <a href="#" style={{fontSize: '0.9rem'}}>Need help? Read our deployment guide.</a>
+      <pre style={{ 
+        backgroundColor: '#f5f5f5', 
+        padding: '1rem', 
+        borderRadius: '5px', 
+        whiteSpace: 'pre-wrap', 
+        wordBreak: 'break-all',
+        marginTop: '1rem'
+      }}>
+        <code>{script}</code>
+      </pre>
+      <button onClick={handleCopy} style={{ marginTop: '1rem', padding: '0.5rem 1rem' }}>Copy Script</button>
+    </div>
+  );
+};
+
+
 const WebsitesPage = () => {
-  const { isAuthenticated, isLoading: isAuthLoading } = useAuth(); // Use the auth context
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const [websites, setWebsites] = useState<Website[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,23 +81,16 @@ const WebsitesPage = () => {
     setIsLoading(true);
     try {
       const token = localStorage.getItem('authToken');
-      if (!token) {
-        setError('Authentication token not found.');
-        setIsLoading(false);
-        return;
-      }
+      if (!token) { throw new Error('Authentication token not found.'); }
 
       const response = await fetch('/api/websites', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Authorization': `Bearer ${token}` },
       });
 
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to fetch websites');
       }
-
       const data = await response.json();
       setWebsites(data.websites || []);
     } catch (err: any) {
@@ -52,29 +101,21 @@ const WebsitesPage = () => {
   };
 
   useEffect(() => {
-    // Only fetch websites if the user is authenticated
     if (isAuthenticated) {
       fetchWebsites();
     }
-  }, [isAuthenticated]); // Re-run when authentication status changes
+  }, [isAuthenticated]);
 
   const handleAddWebsite = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-
     try {
       const token = localStorage.getItem('authToken');
-      if (!token) {
-        setError('Authentication token not found. Please log in again.');
-        return;
-      }
+      if (!token) { throw new Error('Authentication token not found. Please log in again.'); }
 
       const response = await fetch('/api/websites', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ name: newSiteName, domain: newSiteDomain }),
       });
 
@@ -82,29 +123,23 @@ const WebsitesPage = () => {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to add website');
       }
-
       setNewSiteName('');
       setNewSiteDomain('');
-      fetchWebsites(); // Refresh the list
-
+      fetchWebsites();
     } catch (err: any) {
       setError(err.message);
     }
   };
 
-  // Show a loading state while checking authentication
-  if (isAuthLoading) {
-    return <div>Loading...</div>;
-  }
+  if (isAuthLoading) { return <div>Loading...</div>; }
 
-  // If not authenticated, prompt to log in
   if (!isAuthenticated) {
     return (
       <div>
         <Navbar />
-        <div style={{ padding: '2rem' }}>
+        <div style={{ padding: '2rem', textAlign: 'center' }}>
           <h1>Access Denied</h1>
-          <p>Please log in to view your websites.</p>
+          <p>Please log in to manage your websites.</p>
         </div>
       </div>
     );
@@ -113,47 +148,54 @@ const WebsitesPage = () => {
   return (
     <div>
       <Navbar />
-      <div style={{ padding: '2rem' }}>
-        <h1>Your Websites</h1>
+      <div style={{ padding: '2rem', maxWidth: '800px', margin: '0 auto' }}>
+        <h1>Manage Your Websites</h1>
         
-        {error && <p style={{ color: 'red' }}>{error}</p>}
-
-        <form onSubmit={handleAddWebsite} style={{ margin: '2rem 0' }}>
+        <div style={{ background: '#f9f9f9', padding: '1.5rem', borderRadius: '8px', border: '1px solid #eee', marginBottom: '2rem' }}>
           <h2>Add a New Website</h2>
-          <input
-            type="text"
-            placeholder="Website Name (e.g., My Salon)"
-            value={newSiteName}
-            onChange={(e) => setNewSiteName(e.target.value)}
-            required
-            style={{ display: 'block', margin: '0.5rem 0', padding: '0.5rem' }}
-          />
-          <input
-            type="text"
-            placeholder="Domain (e.g., mysalon.com)"
-            value={newSiteDomain}
-            onChange={(e) => setNewSiteDomain(e.target.value)}
-            required
-            style={{ display: 'block', margin: '0.5rem 0', padding: '0.5rem' }}
-          />
-          <button type="submit" style={{ padding: '0.5rem 1rem' }}>Add Website</button>
-        </form>
+          {error && <p style={{ color: 'red' }}>{error}</p>}
+          <form onSubmit={handleAddWebsite}>
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem' }}>Website Name</label>
+              <input
+                type="text"
+                placeholder="e.g., My Salon Bookings"
+                value={newSiteName}
+                onChange={(e) => setNewSiteName(e.target.value)}
+                required
+                style={{ width: '100%', padding: '0.5rem' }}
+              />
+            </div>
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem' }}>Website Domain</label>
+              <input
+                type="text"
+                placeholder="e.g., mysalon.com"
+                value={newSiteDomain}
+                onChange={(e) => setNewSiteDomain(e.target.value)}
+                required
+                style={{ width: '100%', padding: '0.5rem' }}
+              />
+            </div>
+            <button type="submit" style={{ padding: '0.75rem 1.5rem' }}>Add Website & Get Script</button>
+          </form>
+        </div>
 
         <h2>Your Tracked Sites</h2>
         {isLoading ? (
           <p>Loading websites...</p>
         ) : websites.length > 0 ? (
-          <ul>
+          <div>
             {websites.map((site) => (
-              <li key={site.id} style={{ border: '1px solid #ccc', padding: '1rem', margin: '1rem 0' }}>
-                <strong>{site.name}</strong> ({site.domain})
-                <br />
-                <small>Tracking ID: <code>{site.trackingId}</code></small>
-              </li>
+              <div key={site.id} style={{ border: '1px solid #ccc', padding: '1.5rem', margin: '1rem 0', borderRadius: '8px' }}>
+                <h3>{site.name} <span style={{ color: '#555', fontSize: '1rem' }}>({site.domain})</span></h3>
+                {/* --- NEW: Display the script component --- */}
+                <TrackingScript trackingId={site.trackingId} />
+              </div>
             ))}
-          </ul>
+          </div>
         ) : (
-          <p>You haven't added any websites yet.</p>
+          <p>You haven't added any websites yet. Add one above to get started.</p>
         )}
       </div>
     </div>
