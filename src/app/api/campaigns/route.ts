@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { Database } from '@/lib/database';
+import { DatabaseService } from '@/lib/database'; // Corrected import
 import { verifyToken } from '@/lib/auth';
 import { headers } from 'next/headers';
 
-const db = new Database();
+const db = new DatabaseService(); // Corrected instantiation
 
 // GET handler to fetch the current campaign for a user
 export async function GET() {

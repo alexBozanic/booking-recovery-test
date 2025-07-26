@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyPassword, generateToken } from '@/lib/auth';
-import { DatabaseService } from '@/lib/database';
+import { DatabaseService } from '@/lib/database'; // Corrected import
 
 export async function POST(request: NextRequest) {
   try {
+    const db = new DatabaseService(); // Corrected instantiation
     const { email, password } = await request.json();
 
     if (!email || !password) {
@@ -13,32 +14,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user from database
-    const user = await DatabaseService.getUserByEmail(email);
-    
-    if (!user || !user.password) {
-      return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
-      );
+    const user = await db.getUserByEmail(email);
+    if (!user) {
+      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
-    // Verify password
-    const isValidPassword = await verifyPassword(password, user.password);
-    if (!isValidPassword) {
-      return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
-      );
+    const isValid = await verifyPassword(password, user.passwordHash);
+    if (!isValid) {
+      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
-    // Generate JWT token
-    const token = generateToken(user);
-
-    // Return user data and token (exclude password)
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password: _, ...userWithoutPassword } = user;
-    
+    const { passwordHash, ...userWithoutPassword } = user;
+    const token = generateToken(userWithoutPassword);
+
     return NextResponse.json({
       success: true,
       user: userWithoutPassword,

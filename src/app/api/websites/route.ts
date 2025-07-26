@@ -1,109 +1,68 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { headers } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
-import { DatabaseService } from '@/lib/database';
+import { DatabaseService } from '@/lib/database'; // Corrected import
 
-export async function GET(request: NextRequest) {
+const db = new DatabaseService(); // Corrected instantiation
+
+// GET handler to fetch all websites for the logged-in user
+export async function GET() {
   try {
-    // Get authorization header
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: 'Authorization token required' },
-        { status: 401 }
-      );
+    const headersList = headers();
+    const authHeader = headersList.get('authorization');
+
+    if (!authHeader) {
+      return NextResponse.json({ error: 'Authorization header missing' }, { status: 401 });
     }
 
-    const token = authHeader.substring(7);
-    const decoded = verifyToken(token);
-    
-    if (!decoded) {
-      return NextResponse.json(
-        { error: 'Invalid token' },
-        { status: 401 }
-      );
+    const token = authHeader.split(' ')[1];
+    const user = verifyToken(token);
+
+    if (!user) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    // Get user's websites
-    const websites = await DatabaseService.getClientsByUserId(decoded.userId);
-    
-    return NextResponse.json({
-      success: true,
-      websites
-    });
+    const websites = await db.getClientsByUserId(user.id);
+    return NextResponse.json({ websites }, { status: 200 });
 
   } catch (error) {
-    console.error('Get websites API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    console.error('Get Websites API error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-export async function POST(request: NextRequest) {
+// POST handler to create a new website for the logged-in user
+export async function POST(request: Request) {
   try {
-    // Get authorization header
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: 'Authorization token required' },
-        { status: 401 }
-      );
+    const headersList = headers();
+    const authHeader = headersList.get('authorization');
+
+    if (!authHeader) {
+      return NextResponse.json({ error: 'Authorization header missing' }, { status: 401 });
     }
 
-    const token = authHeader.substring(7);
-    const decoded = verifyToken(token);
-    
-    if (!decoded) {
-      return NextResponse.json(
-        { error: 'Invalid token' },
-        { status: 401 }
-      );
+    const token = authHeader.split(' ')[1];
+    const user = verifyToken(token);
+
+    if (!user) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    const { name, domain, businessType } = await request.json();
-
-    // Validate input
+    const { name, domain } = await request.json();
     if (!name || !domain) {
-      return NextResponse.json(
-        { error: 'Name and domain are required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Name and domain are required' }, { status: 400 });
     }
 
-    // Generate unique tracking ID
-    const trackingId = `track_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    // Create client record
-    const clientId = `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const clientData = {
-      id: clientId,
-      userId: decoded.userId,
+    const newClient = await db.createClient({
+      userId: user.id,
       name,
-      domain: domain.replace(/^https?:\/\//, '' ), // Remove protocol if present
-      trackingId,
-      businessType: businessType || 'general',
-      status: 'active',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    // Save to database
-    await DatabaseService.createClient(clientData);
-
-    console.log(`✅ New website created: ${name} (${trackingId})`);
-
-    return NextResponse.json({
-      success: true,
-      message: 'Website added successfully',
-      website: clientData
+      domain,
     });
 
+    return NextResponse.json({ success: true, client: newClient }, { status: 201 });
+
   } catch (error) {
-    console.error('Add website API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    console.error('Create Website API error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

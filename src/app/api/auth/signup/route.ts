@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { hashPassword, generateToken } from '@/lib/auth';
-import { DatabaseService } from '@/lib/database';
+import { DatabaseService } from '@/lib/database'; // Corrected import
 
 export async function POST(request: NextRequest) {
   try {
+    const db = new DatabaseService(); // Corrected instantiation
     const { name, email, password } = await request.json();
 
-    // Validate input
     if (!name || !email || !password) {
       return NextResponse.json(
         { error: 'Name, email, and password are required' },
@@ -14,15 +14,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (password.length < 6) {
-      return NextResponse.json(
-        { error: 'Password must be at least 6 characters' },
-        { status: 400 }
-      );
-    }
-
-    // Check if user already exists
-    const existingUser = await DatabaseService.getUserByEmail(email);
+    const existingUser = await db.getUserByEmail(email);
     if (existingUser) {
       return NextResponse.json(
         { error: 'User with this email already exists' },
@@ -30,37 +22,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Hash password
-    const hashedPassword = await hashPassword(password);
+    const passwordHash = await hashPassword(password);
 
-    // Create new user
-    const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const newUser = {
-      id: userId,
+    const newUser = await db.createUser({
       name,
       email,
-      password: hashedPassword,
-      subscription: 'free',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+      passwordHash,
+    });
 
-    // Save to database
-    await DatabaseService.createUser(newUser);
-
-    // Generate JWT token
-    const token = generateToken(newUser);
-
-    // Return user data and token (exclude password)
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password: _, ...userWithoutPassword } = newUser;
-    
+    const { passwordHash: _, ...userWithoutPassword } = newUser;
+    const token = generateToken(userWithoutPassword);
+
     return NextResponse.json({
       success: true,
-      message: 'Account created successfully',
       user: userWithoutPassword,
       token
-    });
+    }, { status: 201 });
 
   } catch (error) {
     console.error('Signup API error:', error);

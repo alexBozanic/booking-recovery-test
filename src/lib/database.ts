@@ -38,7 +38,7 @@ interface CampaignData {
 }
 
 
-export class Database {
+export class DatabaseService {
   private docClient: DynamoDBDocumentClient;
   private usersTable = 'booking-recovery-users';
   private websitesTable = 'booking-recovery-clients';
