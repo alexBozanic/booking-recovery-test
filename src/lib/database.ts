@@ -1,159 +1,133 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { 
-  DynamoDBDocumentClient, 
-  PutCommand, 
-  GetCommand, 
-  QueryCommand, // Added QueryCommand
-  UpdateCommand 
+import {
+  DynamoDBDocumentClient,
+  PutCommand,
+  QueryCommand,
+  GetCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { v4 as uuidv4 } from 'uuid';
+import { UserData, ClientData, BookingData, CampaignData } from '@/app/types';
 
-// Define types for our data
-interface UserData {
-  id: string;
-  name: string;
-  email: string;
-  passwordHash: string;
-}
+const client = new DynamoDBClient({
+  region: process.env.AWS_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  },
+});
 
-interface WebsiteData {
-  id: string;
-  userId: string;
-  name: string;
-  domain: string;
-  trackingId: string;
-  createdAt: string;
-}
+const docClient = DynamoDBDocumentClient.from(client);
 
-// --- NEW: Define a type for Campaign data ---
-interface CampaignData {
-    id: string;
-    userId: string;
-    subject: string;
-    body: string;
-    delayMinutes: number;
-    isActive: boolean;
-    createdAt: string;
-    updatedAt: string;
-}
-
+const USERS_TABLE = 'booking-recovery-users';
+const CLIENTS_TABLE = 'booking-recovery-clients';
+const BOOKINGS_TABLE = 'booking-recovery-bookings';
+const CAMPAIGNS_TABLE = 'booking-recovery-campaigns';
 
 export class DatabaseService {
-  private docClient: DynamoDBDocumentClient;
-  private usersTable = 'booking-recovery-users';
-  private websitesTable = 'booking-recovery-clients';
-  private campaignsTable = 'booking-recovery-campaigns'; // The table we created earlier
+  // ... (createUser, getUserByEmail methods are here)
 
-  constructor() {
-    const client = new DynamoDBClient({
-      region: process.env.AWS_REGION,
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-      },
-    });
-    this.docClient = DynamoDBDocumentClient.from(client);
-  }
-
-  // --- User Methods ---
   async createUser(userData: Omit<UserData, 'id'>): Promise<UserData> {
-    const id = uuidv4();
-    const user = { id, ...userData };
+    const userId = uuidv4();
+    const newUser: UserData = { id: userId, ...userData };
     const command = new PutCommand({
-      TableName: this.usersTable,
-      Item: user,
+      TableName: USERS_TABLE,
+      Item: newUser,
     });
-    await this.docClient.send(command);
-    return user;
+    await docClient.send(command);
+    return newUser;
   }
 
-  async getUserByEmail(email: string): Promise<UserData | undefined> {
+  async getUserByEmail(email: string): Promise<UserData | null> {
     const command = new QueryCommand({
-      TableName: this.usersTable,
+      TableName: USERS_TABLE,
       IndexName: 'EmailIndex',
       KeyConditionExpression: 'email = :email',
       ExpressionAttributeValues: { ':email': email },
     });
-    const result = await this.docClient.send(command);
+    const result = await docClient.send(command);
     return result.Items?.[0] as UserData | undefined;
   }
 
-  // --- Website Methods ---
-  async createWebsite(websiteData: Omit<WebsiteData, 'id' | 'trackingId' | 'createdAt'>): Promise<WebsiteData> {
-    const id = uuidv4();
-    const trackingId = `track_${Date.now()}_${uuidv4().substring(0, 12)}`;
-    const createdAt = new Date().toISOString();
-    const website = { id, trackingId, createdAt, ...websiteData };
-    
+  // START OF NEWLY ADDED/CORRECTED METHODS
+
+  async createClient(clientData: Omit<ClientData, 'id' | 'trackingId'>): Promise<ClientData> {
+    const clientId = uuidv4();
+    const trackingId = `track_${uuidv4().replace(/-/g, '')}`;
+    const newClient: ClientData = { 
+      id: clientId, 
+      trackingId, 
+      ...clientData 
+    };
     const command = new PutCommand({
-      TableName: this.websitesTable,
-      Item: website,
+      TableName: CLIENTS_TABLE,
+      Item: newClient,
     });
-    await this.docClient.send(command);
-    return website;
+    await docClient.send(command);
+    return newClient;
   }
 
-  async getWebsitesByUserId(userId: string): Promise<WebsiteData[]> {
+  async getClientsByUserId(userId: string): Promise<ClientData[]> {
     const command = new QueryCommand({
-      TableName: this.websitesTable,
+      TableName: CLIENTS_TABLE,
       IndexName: 'UserIdIndex',
       KeyConditionExpression: 'userId = :userId',
       ExpressionAttributeValues: { ':userId': userId },
     });
-    const result = await this.docClient.send(command);
-    return (result.Items || []) as WebsiteData[];
+    const result = await docClient.send(command);
+    return (result.Items as ClientData[]) || [];
   }
 
-  // --- NEW: Campaign Methods ---
-  async getCampaignByUserId(userId: string): Promise<CampaignData | undefined> {
+  // THIS IS THE MISSING METHOD
+  async getClientById(trackingId: string): Promise<ClientData | null> {
     const command = new QueryCommand({
-        TableName: this.campaignsTable,
-        IndexName: 'UserIdIndex', // We will need to add this index to the table
-        KeyConditionExpression: 'userId = :userId',
-        ExpressionAttributeValues: { ':userId': userId },
-        Limit: 1, // A user only has one campaign in this design
+        TableName: CLIENTS_TABLE,
+        IndexName: 'TrackingIdIndex',
+        KeyConditionExpression: 'trackingId = :trackingId',
+        ExpressionAttributeValues: { ':trackingId': trackingId },
     });
-    const result = await this.docClient.send(command);
+    const result = await docClient.send(command);
+    return result.Items?.[0] as ClientData | undefined;
+  }
+
+
+  async createAbandonedBooking(bookingData: Omit<BookingData, 'id'>): Promise<BookingData> {
+    const bookingId = uuidv4();
+    const newBooking: BookingData = { id: bookingId, ...bookingData };
+    const command = new PutCommand({
+      TableName: BOOKINGS_TABLE,
+      Item: newBooking,
+    });
+    await docClient.send(command);
+    return newBooking;
+  }
+
+  async getCampaignByUserId(userId: string): Promise<CampaignData | null> {
+    const command = new QueryCommand({
+      TableName: CAMPAIGNS_TABLE,
+      IndexName: 'UserIdIndex',
+      KeyConditionExpression: 'userId = :userId',
+      ExpressionAttributeValues: { ':userId': userId },
+    });
+    const result = await docClient.send(command);
     return result.Items?.[0] as CampaignData | undefined;
   }
 
-  async createOrUpdateCampaign(campaignData: Omit<CampaignData, 'id' | 'createdAt' | 'updatedAt'>): Promise<CampaignData> {
-    // First, check if a campaign already exists for this user
-    const existingCampaign = await this.getCampaignByUserId(campaignData.userId);
+  async createOrUpdateCampaign(campaignData: Omit<CampaignData, 'id'> & { id?: string }): Promise<CampaignData> {
+    // Check if a campaign for this user already exists
+    const existing = await this.getCampaignByUserId(campaignData.userId);
+    
+    const campaignId = existing ? existing.id : uuidv4();
+    
+    const newCampaign: CampaignData = { 
+      id: campaignId, 
+      ...campaignData 
+    };
 
-    if (existingCampaign) {
-      // Update existing campaign
-      const command = new UpdateCommand({
-        TableName: this.campaignsTable,
-        Key: { id: existingCampaign.id },
-        UpdateExpression: 'set subject = :s, body = :b, delayMinutes = :d, isActive = :a, updatedAt = :u',
-        ExpressionAttributeValues: {
-          ':s': campaignData.subject,
-          ':b': campaignData.body,
-          ':d': campaignData.delayMinutes,
-          ':a': campaignData.isActive,
-          ':u': new Date().toISOString(),
-        },
-        ReturnValues: 'ALL_NEW',
-      });
-      const result = await this.docClient.send(command);
-      return result.Attributes as CampaignData;
-    } else {
-      // Create new campaign
-      const id = uuidv4();
-      const createdAt = new Date().toISOString();
-      const newCampaign = {
-        id,
-        ...campaignData,
-        createdAt,
-        updatedAt: createdAt,
-      };
-      const command = new PutCommand({
-        TableName: this.campaignsTable,
-        Item: newCampaign,
-      });
-      await this.docClient.send(command);
-      return newCampaign;
-    }
+    const command = new PutCommand({
+      TableName: CAMPAIGNS_TABLE,
+      Item: newCampaign,
+    });
+    await docClient.send(command);
+    return newCampaign;
   }
 }
