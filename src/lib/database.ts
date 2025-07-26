@@ -6,7 +6,7 @@ import {
   GetCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { v4 as uuidv4 } from 'uuid';
-import { UserData, ClientData, BookingData, CampaignData } from '@/app/types';
+import { UserData, ClientData, BookingData, CampaignData } from '../types'; // CORRECTED PATH
 
 const client = new DynamoDBClient({
   region: process.env.AWS_REGION,
@@ -24,8 +24,6 @@ const BOOKINGS_TABLE = 'booking-recovery-bookings';
 const CAMPAIGNS_TABLE = 'booking-recovery-campaigns';
 
 export class DatabaseService {
-  // ... (createUser, getUserByEmail methods are here)
-
   async createUser(userData: Omit<UserData, 'id'>): Promise<UserData> {
     const userId = uuidv4();
     const newUser: UserData = { id: userId, ...userData };
@@ -47,8 +45,6 @@ export class DatabaseService {
     const result = await docClient.send(command);
     return result.Items?.[0] as UserData | undefined;
   }
-
-  // START OF NEWLY ADDED/CORRECTED METHODS
 
   async createClient(clientData: Omit<ClientData, 'id' | 'trackingId'>): Promise<ClientData> {
     const clientId = uuidv4();
@@ -77,7 +73,6 @@ export class DatabaseService {
     return (result.Items as ClientData[]) || [];
   }
 
-  // THIS IS THE MISSING METHOD
   async getClientById(trackingId: string): Promise<ClientData | null> {
     const command = new QueryCommand({
         TableName: CLIENTS_TABLE,
@@ -88,7 +83,6 @@ export class DatabaseService {
     const result = await docClient.send(command);
     return result.Items?.[0] as ClientData | undefined;
   }
-
 
   async createAbandonedBooking(bookingData: Omit<BookingData, 'id'>): Promise<BookingData> {
     const bookingId = uuidv4();
@@ -113,16 +107,12 @@ export class DatabaseService {
   }
 
   async createOrUpdateCampaign(campaignData: Omit<CampaignData, 'id'> & { id?: string }): Promise<CampaignData> {
-    // Check if a campaign for this user already exists
     const existing = await this.getCampaignByUserId(campaignData.userId);
-    
     const campaignId = existing ? existing.id : uuidv4();
-    
     const newCampaign: CampaignData = { 
       id: campaignId, 
       ...campaignData 
     };
-
     const command = new PutCommand({
       TableName: CAMPAIGNS_TABLE,
       Item: newCampaign,
