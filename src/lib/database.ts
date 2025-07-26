@@ -6,7 +6,7 @@ import {
   GetCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { v4 as uuidv4 } from 'uuid';
-import { UserData, ClientData, BookingData, CampaignData } from '../types'; // CORRECTED PATH
+import { UserData, ClientData, BookingData, CampaignData } from '../types';
 
 const client = new DynamoDBClient({
   region: process.env.AWS_REGION,
@@ -43,7 +43,7 @@ export class DatabaseService {
       ExpressionAttributeValues: { ':email': email },
     });
     const result = await docClient.send(command);
-    return result.Items?.[0] as UserData | undefined;
+    return (result.Items?.[0] as UserData) || null; // CORRECTED LINE
   }
 
   async createClient(clientData: Omit<ClientData, 'id' | 'trackingId'>): Promise<ClientData> {
@@ -81,7 +81,7 @@ export class DatabaseService {
         ExpressionAttributeValues: { ':trackingId': trackingId },
     });
     const result = await docClient.send(command);
-    return result.Items?.[0] as ClientData | undefined;
+    return (result.Items?.[0] as ClientData) || null; // CORRECTED LINE
   }
 
   async createAbandonedBooking(bookingData: Omit<BookingData, 'id'>): Promise<BookingData> {
@@ -103,7 +103,7 @@ export class DatabaseService {
       ExpressionAttributeValues: { ':userId': userId },
     });
     const result = await docClient.send(command);
-    return result.Items?.[0] as CampaignData | undefined;
+    return (result.Items?.[0] as CampaignData) || null; // CORRECTED LINE
   }
 
   async createOrUpdateCampaign(campaignData: Omit<CampaignData, 'id'> & { id?: string }): Promise<CampaignData> {
