@@ -1,40 +1,44 @@
-export interface User {
+// /src/types/index.ts
+
+export interface UserData {
   id: string;
-  email: string;
   name: string;
-  createdAt: string;
-  subscription: 'free' | 'pro' | 'enterprise';
+  email: string;
+  passwordHash: string;
 }
 
-export interface Client {
+export interface ClientData {
   id: string;
   userId: string;
   name: string;
   domain: string;
   trackingId: string;
-  createdAt: string;
 }
 
-export interface Booking {
+export interface BookingData {
   id: string;
   clientId: string;
-  sessionId: string;
-  email?: string;
-  phone?: string;
-  name?: string;
-  bookingData: Record<string, any>;
-  status: 'abandoned' | 'completed' | 'recovered';
-  abandonedAt?: string;
-  completedAt?: string;
-  recoveredAt?: string;
+  userId: string;
+  bookingData: {
+    name?: string;
+    email?: string;
+    [key: string]: any;
+  };
+  clientInfo: ClientInfo;
+  status: 'abandoned' | 'recovered' | 'completed';
+  timestamp: string;
 }
 
-export interface Campaign {
+export interface ClientInfo {
+  userAgent: string;
+  url: string;
+}
+
+export interface CampaignData {
   id: string;
-  clientId: string;
-  name: string;
-  type: 'email' | 'sms';
-  template: string;
+  userId: string;
+  subject: string;
+  body: string;
   delayMinutes: number;
   isActive: boolean;
 }
