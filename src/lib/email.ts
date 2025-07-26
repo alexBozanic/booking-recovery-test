@@ -1,6 +1,6 @@
 import { Resend } from 'resend';
 import { DatabaseService } from './database';
-import { BookingData, ClientInfo } from '../types'; // CORRECTED PATH
+import { BookingData, ClientInfo } from '../types';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const db = new DatabaseService();
@@ -18,13 +18,15 @@ export class EmailService {
         console.log(`Campaign for user ${userId} is inactive. No email will be sent.`);
         return;
       }
-      if (!bookingData.email) {
+      // CORRECTED: Access the nested bookingData object for the email
+      if (!bookingData.bookingData.email) {
         console.log('No email address found in booking data. Cannot send recovery email.');
         return;
       }
-      console.log(`Scheduling email for ${bookingData.email} in ${delayMinutes} minutes.`);
+      console.log(`Scheduling email for ${bookingData.bookingData.email} in ${delayMinutes} minutes.`);
       setTimeout(() => {
-        this.sendAbandonmentEmail(bookingData.email, clientInfo, bookingData, subject, body)
+        // Pass the whole bookingData object down
+        this.sendAbandonmentEmail(bookingData, clientInfo, subject, body)
           .catch(console.error);
       }, delayMinutes * 60 * 1000);
     } catch (error) {
@@ -33,16 +35,20 @@ export class EmailService {
   }
 
   private async sendAbandonmentEmail(
-    to: string,
-    clientInfo: ClientInfo,
     bookingData: BookingData,
+    clientInfo: ClientInfo,
     subject: string,
     body: string
   ) {
     const from = 'onboarding@resend.dev';
+    // CORRECTED: Access the nested bookingData object for personalization
+    const to = bookingData.bookingData.email;
+    if (!to) return; // Exit if no email
+
     const personalizedBody = body
-      .replace('{{name}}', bookingData.name || 'there')
-      .replace('{{email}}', bookingData.email);
+      .replace('{{name}}', bookingData.bookingData.name || 'there')
+      .replace('{{email}}', to);
+      
     try {
       const data = await resend.emails.send({
         from: from,
