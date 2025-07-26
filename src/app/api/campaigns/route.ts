@@ -1,31 +1,25 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { DatabaseService } from '@/lib/database';
 import { verifyToken } from '@/lib/auth';
-import { headers } from 'next/headers';
 
 const db = new DatabaseService();
 
 // GET handler to fetch the current campaign for a user
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const headersList = headers(); // This line is correct as is, the await was incorrect.
-    const authHeader = headersList.get('authorization');
-
+    const authHeader = request.headers.get('authorization');
     if (!authHeader) {
       return NextResponse.json({ error: 'Authorization header missing' }, { status: 401 });
     }
 
     const token = authHeader.split(' ')[1];
     const user = verifyToken(token);
-
     if (!user) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
     const campaign = await db.getCampaignByUserId(user.id);
-
     if (!campaign) {
-      // Return a default campaign structure if none exists
       return NextResponse.json({ 
         campaign: {
           subject: 'Still thinking about it?',
@@ -44,26 +38,21 @@ export async function GET() {
   }
 }
 
-
 // POST handler to create or update a campaign for a user
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const headersList = headers(); // This line is correct as is.
-    const authHeader = headersList.get('authorization');
-
+    const authHeader = request.headers.get('authorization');
     if (!authHeader) {
       return NextResponse.json({ error: 'Authorization header missing' }, { status: 401 });
     }
 
     const token = authHeader.split(' ')[1];
     const user = verifyToken(token);
-
     if (!user) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
     const { subject, body, delayMinutes, isActive } = await request.json();
-
     if (subject === undefined || body === undefined || delayMinutes === undefined) {
         return NextResponse.json({ error: 'Missing required campaign fields' }, { status: 400 });
     }
@@ -77,7 +66,6 @@ export async function POST(request: Request) {
     };
 
     const savedCampaign = await db.createOrUpdateCampaign(campaignData);
-
     return NextResponse.json({ success: true, campaign: savedCampaign }, { status: 200 });
 
   } catch (error) {
@@ -85,4 +73,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
-

@@ -1,23 +1,19 @@
-import { NextResponse } from 'next/server';
-import { headers } from 'next/headers';
+import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { DatabaseService } from '@/lib/database';
 
 const db = new DatabaseService();
 
 // GET handler to fetch all websites for the logged-in user
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const headersList = headers();
-    const authHeader = headersList.get('authorization');
-
+    const authHeader = request.headers.get('authorization');
     if (!authHeader) {
       return NextResponse.json({ error: 'Authorization header missing' }, { status: 401 });
     }
 
     const token = authHeader.split(' ')[1];
     const user = verifyToken(token);
-
     if (!user) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
@@ -32,18 +28,15 @@ export async function GET() {
 }
 
 // POST handler to create a new website for the logged-in user
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const headersList = headers();
-    const authHeader = headersList.get('authorization');
-
+    const authHeader = request.headers.get('authorization');
     if (!authHeader) {
       return NextResponse.json({ error: 'Authorization header missing' }, { status: 401 });
     }
 
     const token = authHeader.split(' ')[1];
     const user = verifyToken(token);
-
     if (!user) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
@@ -61,7 +54,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, client: newClient }, { status: 201 });
 
-  } catch (error) {
+  } catch (error)
+{
     console.error('Create Website API error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
