@@ -84,5 +84,5 @@ export async function POST(request: Request) {
     console.error('Save Campaign API error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}```
+}
 
