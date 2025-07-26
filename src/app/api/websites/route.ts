@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
-import { DatabaseService } from '@/lib/database'; // Corrected import
+import { DatabaseService } from '@/lib/database';
 
-const db = new DatabaseService(); // Corrected instantiation
+const db = new DatabaseService();
 
 // GET handler to fetch all websites for the logged-in user
 export async function GET() {
