@@ -1,6 +1,6 @@
 import { Resend } from 'resend';
 import { DatabaseService } from './database';
-import { BookingData, ClientInfo } from '@/app/types';
+import { BookingData, ClientInfo } from '../app/types';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const db = new DatabaseService();
