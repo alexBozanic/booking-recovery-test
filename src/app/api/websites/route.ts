@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DatabaseService } from '@/lib/database';
-import { verifyToken } from '@/lib/auth'; // We need a way to verify the user's token
+import { verifyToken } from '@/lib/auth';
 
 // Helper to get user ID from the Authorization header
 function getUserIdFromRequest(request: NextRequest): string | null {
@@ -11,7 +11,11 @@ function getUserIdFromRequest(request: NextRequest): string | null {
   const token = authHeader.split(' ')[1];
   try {
     const decoded = verifyToken(token);
-    return decoded.id; // Assuming the token payload has a user ID
+    // CORRECTED: Add a check to ensure 'decoded' is not null before accessing '.id'
+    if (decoded && typeof decoded === 'object' && 'id' in decoded) {
+      return decoded.id;
+    }
+    return null;
   } catch (error) {
     console.error('Invalid token:', error);
     return null;
@@ -28,14 +32,12 @@ export async function GET(request: NextRequest) {
     }
 
     const db = new DatabaseService();
-    // This was the failing call: we were not providing a userId.
     const websites = await db.getClientsByUserId(userId);
 
     return NextResponse.json(websites);
 
   } catch (error) {
     console.error('Get Websites API error:', error);
-    // Provide a more specific error message if possible
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
     return NextResponse.json({ error: 'Internal server error', details: errorMessage }, { status: 500 });
   }
@@ -65,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(newClient, { status: 201 });
 
-  } catch (error) {
+  } catch (error)
     console.error('Create Website API error:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
     return NextResponse.json({ error: 'Internal server error', details: errorMessage }, { status: 500 });
