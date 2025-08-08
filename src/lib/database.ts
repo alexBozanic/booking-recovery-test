@@ -18,10 +18,11 @@ const client = new DynamoDBClient({
 
 const docClient = DynamoDBDocumentClient.from(client);
 
-const USERS_TABLE = 'booking-recovery-users';
-const CLIENTS_TABLE = 'booking-recovery-clients';
-const BOOKINGS_TABLE = 'booking-recovery-bookings';
-const CAMPAIGNS_TABLE = 'booking-recovery-campaigns';
+// CORRECTED: Use environment variables for all table names
+const USERS_TABLE = process.env.DYNAMODB_USERS_TABLE || 'booking-recovery-users';
+const CLIENTS_TABLE = process.env.DYNAMODB_CLIENTS_TABLE || 'booking-recovery-clients';
+const BOOKINGS_TABLE = process.env.DYNAMODB_BOOKINGS_TABLE || 'booking-recovery-bookings';
+const CAMPAIGNS_TABLE = process.env.DYNAMODB_CAMPAIGNS_TABLE || 'booking-recovery-campaigns';
 
 export class DatabaseService {
   async createUser(userData: Omit<UserData, 'id'>): Promise<UserData> {
@@ -43,16 +44,16 @@ export class DatabaseService {
       ExpressionAttributeValues: { ':email': email },
     });
     const result = await docClient.send(command);
-    return (result.Items?.[0] as UserData) || null; // CORRECTED LINE
+    return (result.Items?.[0] as UserData) || null;
   }
 
   async createClient(clientData: Omit<ClientData, 'id' | 'trackingId'>): Promise<ClientData> {
     const clientId = uuidv4();
     const trackingId = `track_${uuidv4().replace(/-/g, '')}`;
-    const newClient: ClientData = { 
-      id: clientId, 
-      trackingId, 
-      ...clientData 
+    const newClient: ClientData = {
+      id: clientId,
+      trackingId,
+      ...clientData
     };
     const command = new PutCommand({
       TableName: CLIENTS_TABLE,
@@ -81,7 +82,7 @@ export class DatabaseService {
         ExpressionAttributeValues: { ':trackingId': trackingId },
     });
     const result = await docClient.send(command);
-    return (result.Items?.[0] as ClientData) || null; // CORRECTED LINE
+    return (result.Items?.[0] as ClientData) || null;
   }
 
   async createAbandonedBooking(bookingData: Omit<BookingData, 'id'>): Promise<BookingData> {
@@ -103,15 +104,15 @@ export class DatabaseService {
       ExpressionAttributeValues: { ':userId': userId },
     });
     const result = await docClient.send(command);
-    return (result.Items?.[0] as CampaignData) || null; // CORRECTED LINE
+    return (result.Items?.[0] as CampaignData) || null;
   }
 
   async createOrUpdateCampaign(campaignData: Omit<CampaignData, 'id'> & { id?: string }): Promise<CampaignData> {
     const existing = await this.getCampaignByUserId(campaignData.userId);
     const campaignId = existing ? existing.id : uuidv4();
-    const newCampaign: CampaignData = { 
-      id: campaignId, 
-      ...campaignData 
+    const newCampaign: CampaignData = {
+      id: campaignId,
+      ...campaignData
     };
     const command = new PutCommand({
       TableName: CAMPAIGNS_TABLE,
