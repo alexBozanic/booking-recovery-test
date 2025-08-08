@@ -1,44 +1,48 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
-// Define the User type directly in this file
-// This removes the need for the non-existent '@/types' import
-interface User {
+// Define the shape of the token payload
+interface TokenPayload {
   id: string;
   email: string;
-  name: string;
-  [key: string]: any;
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-that-is-long';
+const JWT_SECRET = process.env.JWT_SECRET || 'your-default-secret-key-for-local-dev';
 
-// Hash a password
+// --- Password Hashing ---
+
 export async function hashPassword(password: string): Promise<string> {
   const salt = await bcrypt.genSalt(10);
-  return await bcrypt.hash(password, salt);
+  const hashedPassword = await bcrypt.hash(password, salt);
+  return hashedPassword;
 }
 
-// Verify a password
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {
   return await bcrypt.compare(password, hash);
 }
 
-// Generate a JWT token
-export function generateToken(user: User): string {
-  const payload = {
-    userId: user.id,
+// --- JSON Web Tokens (JWT) ---
+
+export function generateToken(user: { id: string; email: string }): string {
+  const payload: TokenPayload = {
+    id: user.id,
     email: user.email,
-    name: user.name,
   };
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+
+  const token = jwt.sign(payload, JWT_SECRET, {
+    expiresIn: '7d', // Token will be valid for 7 days
+  });
+
+  return token;
 }
 
-// Verify a JWT token
-export function verifyToken(token: string): User | null {
+export function verifyToken(token: string): TokenPayload | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    return decoded as User;
+    const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload;
+    return decoded;
   } catch (error) {
+    // This will catch errors for expired or invalid tokens
+    console.error('JWT Verification Error:', error);
     return null;
   }
 }
