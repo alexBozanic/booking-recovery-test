@@ -1,4 +1,4 @@
-"use client";
+"use client"; // <-- THIS IS THE CRITICAL FIX
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -29,15 +29,12 @@ export default function LoginPage() {
         throw new Error(data.error || 'Login failed');
       }
 
-      // THIS IS THE CRITICAL FIX:
-      // Save the token to localStorage upon successful login.
       if (data.token) {
         if (typeof window !== 'undefined') {
           localStorage.setItem('token', data.token);
         }
       }
 
-      // Redirect to the dashboard
       router.push('/dashboard');
 
     } catch (err: any) {
