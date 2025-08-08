@@ -1,10 +1,8 @@
-'use client';
+"use client";
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import Navbar from '@/components/Navbar';
 
-// Define a type for the website data
+// Define the shape of a Website object for TypeScript
 interface Website {
   id: string;
   name: string;
@@ -12,87 +10,48 @@ interface Website {
   trackingId: string;
 }
 
-// --- NEW: A component to display the tracking script ---
-const TrackingScript = ({ trackingId }: { trackingId: string }) => {
-  const script = `
-(function() {
-    const TRACKING_ID = '${trackingId}'; 
-    const API_ENDPOINT = 'https://booking-recovery-test.vercel.app/api/track';
-    let lastCapturedData = {};
-    function captureFormData( ) {
-        const inputs = document.querySelectorAll('input, select, textarea');
-        const data = {};
-        let email = null;
-        inputs.forEach(input => {
-            if (input.type === 'email' || input.name.toLowerCase().includes('email')) {
-                email = input.value;
-            }
-            if (input.name) { data[input.name] = input.value; }
-        });
-        if (email && JSON.stringify(data) !== JSON.stringify(lastCapturedData)) {
-            lastCapturedData = data;
-            navigator.sendBeacon(API_ENDPOINT, JSON.stringify({
-                trackingId: TRACKING_ID,
-                bookingData: data,
-                clientInfo: { userAgent: navigator.userAgent, url: window.location.href }
-            }));
-        }
-    }
-    document.addEventListener('input', captureFormData, true);
-})();
-  `;
+export default function ManageWebsitesPage() {
+  const [websites, setWebsites] = useState<Website[]>([]);
+  const [websiteName, setWebsiteName] = useState('');
+  const [websiteDomain, setWebsiteDomain] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(script);
-    alert('Script copied to clipboard!');
+  // Function to get the auth token from local storage
+  const getToken = () => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('token');
+    }
+    return null;
   };
 
-  return (
-    <div style={{ marginTop: '1rem', border: '1px solid #eee', padding: '1rem', borderRadius: '5px' }}>
-      <h4>Your Tracking Script</h4>
-      <p>Copy this script and paste it into the &lt;head&gt; or &lt;body&gt; section of your website's HTML, or use your website builder's "Custom Code" feature.</p>
-      {/* We will link to a real guide later */}
-      <a href="/guide" style={{fontSize: '0.9rem'}}>Need help? Read our deployment guide.</a>
-      <pre style={{ 
-        backgroundColor: '#f5f5f5', 
-        padding: '1rem', 
-        borderRadius: '5px', 
-        whiteSpace: 'pre-wrap', 
-        wordBreak: 'break-all',
-        marginTop: '1rem'
-      }}>
-        <code>{script}</code>
-      </pre>
-      <button onClick={handleCopy} style={{ marginTop: '1rem', padding: '0.5rem 1rem' }}>Copy Script</button>
-    </div>
-  );
-};
-
-
-const WebsitesPage = () => {
-  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
-  const [websites, setWebsites] = useState<Website[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [newSiteName, setNewSiteName] = useState('');
-  const [newSiteDomain, setNewSiteDomain] = useState('');
-
+  // Function to fetch websites from the backend
   const fetchWebsites = async () => {
     setIsLoading(true);
-    try {
-      const token = localStorage.getItem('authToken');
-      if (!token) { throw new Error('Authentication token not found.'); }
+    setError(null);
+    const token = getToken();
 
+    if (!token) {
+      setError("Unauthorized. Please sign in again.");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
       const response = await fetch('/api/websites', {
-        headers: { 'Authorization': `Bearer ${token}` },
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`, // <-- THE CRITICAL PART
+        },
       });
 
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to fetch websites');
       }
-      const data = await response.json();
-      setWebsites(data.websites || []);
+
+      const data: Website[] = await response.json();
+      setWebsites(data);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -100,106 +59,102 @@ const WebsitesPage = () => {
     }
   };
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchWebsites();
-    }
-  }, [isAuthenticated]);
-
+  // Function to handle adding a new website
   const handleAddWebsite = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    try {
-      const token = localStorage.getItem('authToken');
-      if (!token) { throw new Error('Authentication token not found. Please log in again.'); }
+    const token = getToken();
 
+    if (!token) {
+      setError("Unauthorized. Please sign in again.");
+      return;
+    }
+
+    try {
       const response = await fetch('/api/websites', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ name: newSiteName, domain: newSiteDomain }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`, // <-- THE CRITICAL PART
+        },
+        body: JSON.stringify({ name: websiteName, domain: websiteDomain }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to add website');
       }
-      setNewSiteName('');
-      setNewSiteDomain('');
+
+      // Clear form and refetch the list to show the new website
+      setWebsiteName('');
+      setWebsiteDomain('');
       fetchWebsites();
     } catch (err: any) {
       setError(err.message);
     }
   };
 
-  if (isAuthLoading) { return <div>Loading...</div>; }
-
-  if (!isAuthenticated) {
-    return (
-      <div>
-        <Navbar />
-        <div style={{ padding: '2rem', textAlign: 'center' }}>
-          <h1>Access Denied</h1>
-          <p>Please log in to manage your websites.</p>
-        </div>
-      </div>
-    );
-  }
+  // Fetch websites when the component first loads
+  useEffect(() => {
+    fetchWebsites();
+  }, []);
 
   return (
-    <div>
-      <Navbar />
-      <div style={{ padding: '2rem', maxWidth: '800px', margin: '0 auto' }}>
-        <h1>Manage Your Websites</h1>
-        
-        <div style={{ background: '#f9f9f9', padding: '1.5rem', borderRadius: '8px', border: '1px solid #eee', marginBottom: '2rem' }}>
-          <h2>Add a New Website</h2>
-          {error && <p style={{ color: 'red' }}>{error}</p>}
-          <form onSubmit={handleAddWebsite}>
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem' }}>Website Name</label>
-              <input
-                type="text"
-                placeholder="e.g., My Salon Bookings"
-                value={newSiteName}
-                onChange={(e) => setNewSiteName(e.target.value)}
-                required
-                style={{ width: '100%', padding: '0.5rem' }}
-              />
-            </div>
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem' }}>Website Domain</label>
-              <input
-                type="text"
-                placeholder="e.g., mysalon.com"
-                value={newSiteDomain}
-                onChange={(e) => setNewSiteDomain(e.target.value)}
-                required
-                style={{ width: '100%', padding: '0.5rem' }}
-              />
-            </div>
-            <button type="submit" style={{ padding: '0.75rem 1.5rem' }}>Add Website & Get Script</button>
-          </form>
-        </div>
+    <div className="p-8">
+      <h1 className="text-2xl font-bold mb-6">Manage Your Websites</h1>
 
-        <h2>Your Tracked Sites</h2>
+      <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+        <h2 className="text-xl font-semibold mb-4">Add a New Website</h2>
+        {error && <p className="text-red-500 mb-4">{error}</p>}
+        <form onSubmit={handleAddWebsite}>
+          <div className="mb-4">
+            <label htmlFor="websiteName" className="block text-gray-700 mb-2">Website Name</label>
+            <input
+              id="websiteName"
+              type="text"
+              value={websiteName}
+              onChange={(e) => setWebsiteName(e.target.value)}
+              placeholder="e.g., My Salon Bookings"
+              className="w-full p-2 border rounded"
+              required
+            />
+          </div>
+          <div className="mb-4">
+            <label htmlFor="websiteDomain" className="block text-gray-700 mb-2">Website Domain</label>
+            <input
+              id="websiteDomain"
+              type="text"
+              value={websiteDomain}
+              onChange={(e) => setWebsiteDomain(e.target.value)}
+              placeholder="e.g., mysalon.com"
+              className="w-full p-2 border rounded"
+              required
+            />
+          </div>
+          <button type="submit" className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">
+            Add Website & Get Script
+          </button>
+        </form>
+      </div>
+
+      <div>
+        <h2 className="text-xl font-semibold mb-4">Your Tracked Sites</h2>
         {isLoading ? (
           <p>Loading websites...</p>
         ) : websites.length > 0 ? (
-          <div>
+          <ul className="space-y-4">
             {websites.map((site) => (
-              <div key={site.id} style={{ border: '1px solid #ccc', padding: '1.5rem', margin: '1rem 0', borderRadius: '8px' }}>
-                <h3>{site.name} <span style={{ color: '#555', fontSize: '1rem' }}>({site.domain})</span></h3>
-                {/* --- NEW: Display the script component --- */}
-                <TrackingScript trackingId={site.trackingId} />
-              </div>
+              <li key={site.id} className="bg-white p-4 rounded-lg shadow-md">
+                <p className="font-bold">{site.name}</p>
+                <p className="text-gray-600">{site.domain}</p>
+                <p className="text-sm text-gray-500 mt-2">Tracking ID: <code>{site.trackingId}</code></p>
+              </li>
             ))}
-          </div>
+          </ul>
         ) : (
           <p>You haven't added any websites yet. Add one above to get started.</p>
         )}
       </div>
     </div>
   );
-};
-
-export default WebsitesPage;
+}
