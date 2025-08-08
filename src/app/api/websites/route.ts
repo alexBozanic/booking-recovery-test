@@ -11,7 +11,6 @@ function getUserIdFromRequest(request: NextRequest): string | null {
   const token = authHeader.split(' ')[1];
   try {
     const decoded = verifyToken(token);
-    // CORRECTED: Add a check to ensure 'decoded' is not null before accessing '.id'
     if (decoded && typeof decoded === 'object' && 'id' in decoded) {
       return decoded.id;
     }
@@ -67,7 +66,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(newClient, { status: 201 });
 
-  } catch (error)
+  } catch (error) { // CORRECTED: Added the missing opening brace
     console.error('Create Website API error:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
     return NextResponse.json({ error: 'Internal server error', details: errorMessage }, { status: 500 });
