@@ -1,62 +1,73 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
 import { DatabaseService } from '@/lib/database';
+import { verifyToken } from '@/lib/auth'; // We need a way to verify the user's token
 
-const db = new DatabaseService();
-
-// GET handler to fetch all websites for the logged-in user
-export async function GET(request: NextRequest) {
+// Helper to get user ID from the Authorization header
+function getUserIdFromRequest(request: NextRequest): string | null {
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+  const token = authHeader.split(' ')[1];
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Authorization header missing' }, { status: 401 });
-    }
-
-    const token = authHeader.split(' ')[1];
-    const user = verifyToken(token);
-    if (!user) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
-
-    const websites = await db.getClientsByUserId(user.id);
-    return NextResponse.json({ websites }, { status: 200 });
-
+    const decoded = verifyToken(token);
+    return decoded.id; // Assuming the token payload has a user ID
   } catch (error) {
-    console.error('Get Websites API error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Invalid token:', error);
+    return null;
   }
 }
 
-// POST handler to create a new website for the logged-in user
-export async function POST(request: NextRequest) {
+// GET handler to fetch existing websites for the logged-in user
+export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Authorization header missing' }, { status: 401 });
+    const userId = getUserIdFromRequest(request);
+
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const token = authHeader.split(' ')[1];
-    const user = verifyToken(token);
-    if (!user) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    const db = new DatabaseService();
+    // This was the failing call: we were not providing a userId.
+    const websites = await db.getClientsByUserId(userId);
+
+    return NextResponse.json(websites);
+
+  } catch (error) {
+    console.error('Get Websites API error:', error);
+    // Provide a more specific error message if possible
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    return NextResponse.json({ error: 'Internal server error', details: errorMessage }, { status: 500 });
+  }
+}
+
+// POST handler to create a new website
+export async function POST(request: NextRequest) {
+  try {
+    const userId = getUserIdFromRequest(request);
+
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { name, domain } = await request.json();
+
     if (!name || !domain) {
-      return NextResponse.json({ error: 'Name and domain are required' }, { status: 400 });
+      return NextResponse.json({ error: 'Website name and domain are required' }, { status: 400 });
     }
 
+    const db = new DatabaseService();
     const newClient = await db.createClient({
-      userId: user.id,
+      userId,
       name,
       domain,
     });
 
-    return NextResponse.json({ success: true, client: newClient }, { status: 201 });
+    return NextResponse.json(newClient, { status: 201 });
 
-  } catch (error)
-{
+  } catch (error) {
     console.error('Create Website API error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    return NextResponse.json({ error: 'Internal server error', details: errorMessage }, { status: 500 });
   }
 }
