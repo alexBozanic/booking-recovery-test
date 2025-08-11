@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from 'react'; // Import useEffect
+import { useState } from 'react';
+import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -9,44 +10,26 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [loginSuccess, setLoginSuccess] = useState(false); // New state to trigger redirect
   const router = useRouter();
-
-  // useEffect hook to handle the redirect safely
-  useEffect(() => {
-    if (loginSuccess) {
-      router.push('/dashboard');
-    }
-  }, [loginSuccess, router]);
 
   const handleLogin = async () => {
     setIsLoading(true);
     setError(null);
 
-    try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+    const result = await signIn('credentials', {
+      redirect: false, // We handle the redirect manually
+      email: email,
+      password: password,
+    });
 
-      const data = await response.json();
+    setIsLoading(false);
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Login failed. Please check your credentials.');
-      }
-
-      if (data.token) {
-        localStorage.setItem('token', data.token);
-        setLoginSuccess(true); // Set success state instead of redirecting directly
-      } else {
-        throw new Error("Login successful, but no token was provided.");
-      }
-
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
+    if (result?.error) {
+      // Handle errors, e.g., "Invalid credentials"
+      setError("Login failed. Please check your email and password.");
+    } else if (result?.ok) {
+      // On success, redirect to the dashboard
+      router.push('/dashboard');
     }
   };
 
@@ -81,10 +64,10 @@ export default function LoginPage() {
           </div>
           <button 
             onClick={handleLogin} 
-            disabled={isLoading || loginSuccess}
+            disabled={isLoading}
             className="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 disabled:bg-indigo-300"
           >
-            {isLoading ? 'Signing In...' : (loginSuccess ? 'Redirecting...' : 'Sign In')}
+            {isLoading ? 'Signing In...' : 'Sign In'}
           </button>
         </div>
 

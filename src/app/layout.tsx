@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { AuthProvider } from "@/context/AuthContext"; // Import the provider
+import NextAuthProvider from "@/lib/SessionProvider"; // Import our new provider
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Booking Recovery Tool",
-  description: "Recover abandoned bookings with intelligent tracking and automated follow-up campaigns.",
+  description: "Recover abandoned calendar bookings.",
 };
 
 export default function RootLayout({
@@ -18,9 +18,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <AuthProvider> {/* Wrap everything with the AuthProvider */}
+        <NextAuthProvider> {/* Add the provider here */}
           {children}
-        </AuthProvider>
+        </NextAuthProvider>
       </body>
     </html>
   );
