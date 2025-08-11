@@ -1,50 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { hashPassword, generateToken } from '@/lib/auth';
-import { DatabaseService } from '@/lib/database'; // Corrected import
+import { DatabaseService } from '@/lib/database';
+import { hashPassword } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
-    const db = new DatabaseService(); // Corrected instantiation
     const { name, email, password } = await request.json();
 
+    // --- Input Validation ---
     if (!name || !email || !password) {
-      return NextResponse.json(
-        { error: 'Name, email, and password are required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+    if (password.length < 6) {
+      return NextResponse.json({ error: 'Password must be at least 6 characters long' }, { status: 400 });
     }
 
+    const db = new DatabaseService();
+
+    // --- Check if user already exists ---
     const existingUser = await db.getUserByEmail(email);
     if (existingUser) {
-      return NextResponse.json(
-        { error: 'User with this email already exists' },
-        { status: 409 }
-      );
+      return NextResponse.json({ error: 'A user with that email already exists' }, { status: 409 }); // 409 Conflict
     }
 
+    // --- Hash Password and Create User ---
     const passwordHash = await hashPassword(password);
 
     const newUser = await db.createUser({
       name,
       email,
-      passwordHash,
+      password: passwordHash, // THIS IS THE CORRECTED LINE
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { passwordHash: _, ...userWithoutPassword } = newUser;
-    const token = generateToken(userWithoutPassword);
-
     return NextResponse.json({
-      success: true,
-      user: userWithoutPassword,
-      token
+      message: 'User created successfully',
+      user: newUser,
     }, { status: 201 });
 
   } catch (error) {
     console.error('Signup API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    return NextResponse.json({ error: 'Internal server error', details: errorMessage }, { status: 500 });
   }
 }
