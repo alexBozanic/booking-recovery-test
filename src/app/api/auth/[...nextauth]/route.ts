@@ -1,10 +1,10 @@
-import NextAuth from "next-auth";
+import NextAuth, { AuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { DatabaseService } from "@/lib/database";
 import { verifyPassword } from "@/lib/auth";
 
-// ADDED EXPORT HERE
-export const handler = NextAuth({
+// Define the auth options in a constant
+export const authOptions: AuthOptions = {
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -13,9 +13,7 @@ export const handler = NextAuth({
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        if (!credentials || !credentials.email || !credentials.password) {
-          return null;
-        }
+        if (!credentials?.email || !credentials?.password) { return null; }
         const db = new DatabaseService();
         const user = await db.getUserForAuth(credentials.email);
         if (!user) { return null; }
@@ -38,6 +36,10 @@ export const handler = NextAuth({
   },
   pages: { signIn: '/login' },
   secret: process.env.NEXTAUTH_SECRET,
-});
+};
 
+// Create the handler from the options
+const handler = NextAuth(authOptions);
+
+// Export the handler for GET and POST requests
 export { handler as GET, handler as POST };
