@@ -17,7 +17,8 @@ const handler = NextAuth({
         }
 
         const db = new DatabaseService();
-        const user = await db.getUserByEmail(credentials.email);
+        // THIS IS THE CORRECTED LINE:
+        const user = await db.getUserForAuth(credentials.email);
 
         if (!user) {
           return null; // User not found
