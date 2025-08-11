@@ -21,22 +21,21 @@ export class DatabaseService {
     });
     const { Item } = await docClient.send(command);
     if (!Item) return null;
-    // Return user data without the password for general use
-    const { password, ...userData } = Item;
+    const { passwordHash, ...userData } = Item;
     return userData as UserData;
   }
 
-  // NEW FUNCTION FOR AUTHENTICATION
-  async getUserForAuth(email: string): Promise<{ id: string; email: string; name: string; password: string } | null> {
+  async getUserForAuth(email: string): Promise<{ id: string; email: string; name: string; passwordHash: string } | null> {
     const command = new GetCommand({
       TableName: USERS_TABLE,
       Key: { email },
     });
     const { Item } = await docClient.send(command);
-    return Item ? (Item as { id: string; email: string; name: string; password: string }) : null;
+    return Item ? (Item as { id: string; email: string; name: string; passwordHash: string }) : null;
   }
 
-  async createUser(userData: Omit<UserData, 'id'> & { password: string }): Promise<UserData> {
+  // THIS IS THE CORRECTED FUNCTION DEFINITION
+  async createUser(userData: Omit<UserData, 'id'>): Promise<UserData> {
     const newUser = {
       id: uuidv4(),
       ...userData,
@@ -46,7 +45,7 @@ export class DatabaseService {
       Item: newUser,
     });
     await docClient.send(command);
-    const { password, ...result } = newUser;
+    const { passwordHash, ...result } = newUser;
     return result;
   }
 

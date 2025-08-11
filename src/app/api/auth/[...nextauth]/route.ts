@@ -17,20 +17,19 @@ const handler = NextAuth({
         }
 
         const db = new DatabaseService();
-        // THIS IS THE CORRECTED LINE:
         const user = await db.getUserForAuth(credentials.email);
 
         if (!user) {
-          return null; // User not found
+          return null;
         }
 
-        const isValid = await verifyPassword(credentials.password, user.password);
+        // THIS IS THE CORRECTED LINE
+        const isValid = await verifyPassword(credentials.password, user.passwordHash);
 
         if (!isValid) {
-          return null; // Password did not match
+          return null;
         }
 
-        // Return user object if everything is correct
         return {
           id: user.id,
           email: user.email,

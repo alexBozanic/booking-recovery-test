@@ -6,7 +6,6 @@ export async function POST(request: NextRequest) {
   try {
     const { name, email, password } = await request.json();
 
-    // --- Input Validation ---
     if (!name || !email || !password) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
@@ -16,19 +15,18 @@ export async function POST(request: NextRequest) {
 
     const db = new DatabaseService();
 
-    // --- Check if user already exists ---
     const existingUser = await db.getUserByEmail(email);
     if (existingUser) {
-      return NextResponse.json({ error: 'A user with that email already exists' }, { status: 409 }); // 409 Conflict
+      return NextResponse.json({ error: 'A user with that email already exists' }, { status: 409 });
     }
 
-    // --- Hash Password and Create User ---
     const passwordHash = await hashPassword(password);
 
+    // THIS NOW MATCHES THE CORRECTED DATABASE FUNCTION
     const newUser = await db.createUser({
       name,
       email,
-      password: passwordHash, // THIS IS THE CORRECTED LINE
+      passwordHash: passwordHash,
     });
 
     return NextResponse.json({
